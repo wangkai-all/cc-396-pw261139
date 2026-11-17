@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pointwise Rules</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark">PW</span>
+        <div>
+          <h1>Pointwise Rules</h1>
+          <p class="sub">Versioned expressions over data columns</p>
+        </div>
+      </div>
+      <nav class="tabs" id="tabs">
+        <button data-view="studio" class="active">Rule Studio</button>
+        <button data-view="jobs">Jobs</button>
+        <button data-view="sources">Data &amp; Dimensions</button>
+      </nav>
+      <div class="health" id="health" title="Server health">·</div>
+    </header>
+
+    <main>
+      <!-- ---------------------------------------------------------- -->
+      <section id="view-studio" class="view active">
+        <div class="studio-grid">
+          <section class="panel editor-panel">
+            <div class="panel-head">
+              <h2>Expression</h2>
+              <div class="row">
+                <label class="field compact">
+                  <span>Run mode</span>
+                  <select id="mode">
+                    <option value="row">per row</option>
+                    <option value="group">grouped</option>
+                  </select>
+                </label>
+                <button id="btn-save" class="ghost" title="Save as a new rule version">Save version</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <label class="field grow">
+                <span>Rule name</span>
+                <input id="rule-name" list="rule-names" placeholder="net_amount_v1" autocomplete="off" />
+                <datalist id="rule-names"></datalist>
+              </label>
+              <label class="field grow">
+                <span>Dataset version</span>
+                <select id="dataset-version"></select>
+              </label>
+            </div>
+
+            <div class="editor-wrap">
+              <div class="gutter" id="gutter" aria-hidden="true">1</div>
+              <textarea id="expression" spellcheck="false" autocomplete="off" aria-label="Expression"></textarea>
+            </div>
+
+            <div id="compile-status" class="status-line"></div>
+
+            <div class="row wrap" id="dim-picker">
+              <span class="label">Pinned dimensions</span>
+              <div id="dim-checks" class="chips"></div>
+            </div>
+
+            <div class="row wrap">
+              <span class="label">Group keys</span>
+              <div id="key-list" class="chips"></div>
+              <input id="key-input" class="mini" placeholder="key name = expression" />
+              <button id="btn-add-key" class="ghost small">Add key</button>
+            </div>
+
+            <div class="actions">
+              <button id="btn-preview" class="primary">Preview</button>
+              <button id="btn-validate" class="ghost">Validate only</button>
+              <button id="btn-run" class="primary alt">Run job</button>
+            </div>
+
+            <div id="error-box" class="error-box hidden"></div>
+            <div id="warnings" class="warnings"></div>
+          </section>
+
+          <section class="panel preview-panel">
+            <div class="panel-head">
+              <h2>Preview</h2>
+              <span id="preview-meta" class="meta"></span>
+            </div>
+            <div id="preview-body" class="preview-body">
+              <p class="hint">Write an expression, then <strong>Preview</strong> to compute it against real rows of the selected dataset version.</p>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel reference">
+          <div class="panel-head"><h2>Language reference</h2><span class="meta">Restricted, side-effect free, no scripts</span></div>
+          <div class="ref-grid">
+            <div>
+              <h3>Values &amp; operators</h3>
+              <ul>
+                <li>Numbers, "text", <code>true</code>/<code>false</code>, <code>null</code></li>
+                <li><code>+ - * / %</code>, comparison <code>== != &lt; &lt;= &gt; &gt;=</code></li>
+                <li><code>and or not</code>, <code>in (...)</code>, <code>between a and b</code></li>
+                <li><code>x is null</code>, <code>x is not null</code></li>
+                <li>Missing values propagate SQL-style; use <code>coalesce</code></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Functions</h3>
+              <ul>
+                <li><code>lookup("dim", key)</code> &mdash; read the pinned dimension version</li>
+                <li><code>if(c, a, b)</code>, <code>coalesce(...)</code>, <code>min_of</code>/<code>max_of</code></li>
+                <li><code>lower upper trim length concat substr startswith endswith contains</code></li>
+                <li><code>abs round floor ceil</code></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Grouped mode</h3>
+              <ul>
+                <li>Group keys are any row expression, e.g. <code>month = substr(order_date, 1, 7)</code></li>
+                <li>Outputs without aggregates are computed per row first</li>
+                <li>Aggregates: <code>sum count min max avg count_distinct</code></li>
+                <li>An aggregate may reference another output, e.g. <code>sum(net_amount_v1)</code></li>
+                <li>Sums are exact and independent of batch size</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- ---------------------------------------------------------- -->
+      <section id="view-jobs" class="view">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Jobs</h2>
+            <div class="row">
+              <button id="btn-refresh-jobs" class="ghost small">Refresh</button>
+              <button id="btn-recover" class="ghost small" title="Requeue tasks whose worker lease expired">Recover interrupted</button>
+            </div>
+          </div>
+          <table class="table" id="jobs-table">
+            <thead>
+              <tr><th>Job</th><th>Status</th><th>Mode</th><th>Progress</th><th>Label</th><th>Created</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="panel hidden" id="job-detail">
+          <div class="panel-head">
+            <h2 id="job-detail-title">Job</h2>
+            <div class="row">
+              <button id="btn-wake" class="ghost small">Wake worker</button>
+              <button id="btn-cancel-job" class="ghost small danger">Cancel</button>
+            </div>
+          </div>
+          <div id="job-detail-body"></div>
+        </div>
+      </section>
+
+      <!-- ---------------------------------------------------------- -->
+      <section id="view-sources" class="view">
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-head"><h2>Datasets</h2></div>
+            <div id="datasets-list" class="stack"></div>
+            <details class="uploader">
+              <summary>Load a dataset version</summary>
+              <label class="field"><span>Name</span><input id="ds-name" placeholder="orders_2025" /></label>
+              <label class="field"><span>Format</span>
+                <select id="ds-format"><option value="csv">CSV</option><option value="jsonl">JSONL</option></select>
+              </label>
+              <label class="field"><span>Paste content</span><textarea id="ds-content" rows="5" placeholder="a,b&#10;1,2"></textarea></label>
+              <div class="row"><button id="btn-load-dataset" class="primary small">Load version</button><span class="meta" id="ds-msg"></span></div>
+            </details>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>Dimension tables</h2></div>
+            <div id="dims-list" class="stack"></div>
+            <details class="uploader">
+              <summary>Load a dimension version</summary>
+              <label class="field"><span>Name</span><input id="dim-name" placeholder="region_tier" /></label>
+              <label class="field"><span>Format</span>
+                <select id="dim-format"><option value="csv">CSV (key,value)</option><option value="jsonl">JSONL (key/value)</option></select>
+              </label>
+              <label class="field"><span>Paste content</span><textarea id="dim-content" rows="5" placeholder="US,domestic&#10;CA,nearshore"></textarea></label>
+              <div class="row"><button id="btn-load-dim" class="primary small">Load version</button><span class="meta" id="dim-msg"></span></div>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

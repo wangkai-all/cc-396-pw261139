@@ -1,0 +1,21 @@
+{
+  "name": "pointwise-rules",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Versioned, crash-resumable rule engine with a restricted expression language",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "worker": "node src/worker.js",
+    "seed": "node scripts/seed.js",
+    "demo": "node scripts/demo.js",
+    "test": "node --test \"test/unit/*.test.js\" \"test/integration/*.test.js\"",
+    "test:unit": "node --test \"test/unit/*.test.js\"",
+    "test:integration": "node --test \"test/integration/*.test.js\"",
+    "check": "node --check public/app.js && node --check src/server.js && node --check src/worker.js"
+  },
+  "dependencies": {}
+}
